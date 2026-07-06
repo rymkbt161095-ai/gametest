@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>きらめきソーダ｜神経衰弱チャレンジ</title>
+<style>
+  :root{
+    --ink:#2C2C2B; --sub:#7D7A75;
+    --card-back-1:#2783DE; --card-back-2:#5E9FE8;
+    --gold:#EAC26B; --pink:#DF84A8; --green:#46A171;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 24px rgba(0,0,0,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", Roboto, Helvetica, Arial, sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #EAF4FF 0%, rgba(234,244,255,0) 60%),
+      linear-gradient(160deg, #FDFCFB 0%, #F4F8FD 55%, #EFF5FB 100%);
+    display:flex; align-items:center; justify-content:center;
+    min-height:100dvh; padding:16px;
+    overflow:hidden;
+  }
+
+  .stage{
+    width:100%; max-width:420px;
+    background:#FFFFFF;
+    border:1px solid #E6E5E3;
+    border-radius:24px;
+    box-shadow: var(--shadow);
+    padding:20px 20px 18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .stage::before{ /* decorative brand ribbon */
+    content:""; position:absolute; inset:0 0 auto 0; height:6px;
+    background:linear-gradient(90deg,#2783DE,#5E9FE8,#EAC26B,#DF84A8);
+  }
+
+  /* ---------- Brand header ---------- */
+  .brand{
+    display:flex; align-items:center; gap:10px; margin-top:4px;
+  }
+  .logo{
+    width:38px; height:38px; border-radius:12px; flex:0 0 auto;
+    background:linear-gradient(145deg,#2783DE,#5E9FE8);
+    display:grid; place-items:center; color:#fff; font-size:20px;
+    box-shadow:0 4px 10px rgba(39,131,222,.35);
+  }
+  .brand h1{ font-size:16px; margin:0; letter-spacing:.2px;}
+  .brand p{ font-size:12px; margin:2px 0 0; color:var(--sub);}
+
+  /* ---------- HUD ---------- */
+  .hud{
+    display:flex; gap:8px; margin:16px 0 12px;
+  }
+  .chip{
+    flex:1; background:#F9F8F7; border:1px solid #E6E5E3; border-radius:12px;
+    padding:8px 10px; text-align:center;
+  }
+  .chip .k{ font-size:10px; color:var(--sub); letter-spacing:.4px;}
+  .chip .v{ font-size:18px; font-weight:700; margin-top:1px; font-variant-numeric:tabular-nums;}
+  .chip.live .v{ color:var(--card-back-1);}
+
+  /* ---------- Board ---------- */
+  .board{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
+    perspective:1000px;
+  }
+  .card{
+    position:relative; aspect-ratio:3/4; cursor:pointer;
+    transform-style:preserve-3d; transition:transform .45s cubic-bezier(.2,.7,.2,1);
+    border:none; padding:0; background:none;
+  }
+  .card.flipped, .card.matched{ transform:rotateY(180deg);}
+  .card .face{
+    position:absolute; inset:0; border-radius:var(--radius);
+    backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    display:grid; place-items:center;
+    box-shadow: var(--shadow);
+  }
+  .card .back{
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.35), rgba(255,255,255,0) 45%),
+      linear-gradient(150deg,var(--card-back-1),var(--card-back-2));
+    color:#fff; font-size:26px; font-weight:800;
+    border:2px solid rgba(255,255,255,.25);
+  }
+  .card .back span{ opacity:.9; text-shadow:0 2px 6px rgba(0,0,0,.15);}
+  .card .front{
+    background:#FFFFFF; border:2px solid #E6E5E3; transform:rotateY(180deg);
+    font-size:40px;
+  }
+  .card.matched .front{
+    border-color:#46A171;
+    background:linear-gradient(180deg,#F2FBF6,#E8F1EC);
+    animation:pop .4s ease;
+  }
+  @keyframes pop{ 0%{transform:rotateY(180deg) scale(1);} 40%{transform:rotateY(180deg) scale(1.12);} 100%{transform:rotateY(180deg) scale(1);} }
+
+  .card:focus-visible{ outline:3px solid #2783DE; outline-offset:3px; border-radius:var(--radius);}
+
+  /* ---------- Footer hint ---------- */
+  .hint{ text-align:center; color:var(--sub); font-size:12px; margin-top:14px; min-height:16px;}
+
+  /* ---------- Overlays ---------- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(255,255,255,.86);
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:28px; gap:6px; z-index:5;
+    opacity:0; pointer-events:none; transition:opacity .35s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto;}
+  .overlay .big{ font-size:26px; font-weight:800; letter-spacing:.3px;}
+  .overlay .emoji{ font-size:52px; line-height:1;}
+  .overlay .sub{ font-size:13px; color:var(--sub); max-width:260px;}
+
+  .coupon{
+    margin:12px 0 4px; background:linear-gradient(135deg,#FFF7E6,#FBEEDA);
+    border:1.5px dashed #D5803B; border-radius:14px; padding:12px 18px;
+    color:#9A5A1E; font-weight:800; font-size:18px; letter-spacing:1px;
+  }
+  .coupon small{ display:block; font-weight:600; font-size:10px; letter-spacing:.6px; opacity:.8; margin-bottom:2px;}
+
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-family:inherit;
+    font-weight:700; font-size:15px; border-radius:12px; padding:13px 20px;
+    min-height:46px; width:100%; max-width:280px; transition:transform .12s ease, box-shadow .2s ease;
+  }
+  .btn.primary{
+    background:linear-gradient(135deg,#2783DE,#5E9FE8); color:#fff;
+    box-shadow:0 6px 16px rgba(39,131,222,.35);
+  }
+  .btn.primary:hover{ transform:translateY(-1px);}
+  .btn.primary:active{ transform:translateY(1px);}
+  .btn.ghost{ background:transparent; color:var(--sub); font-weight:600; font-size:13px; min-height:auto; padding:8px; box-shadow:none;}
+  .btn.ghost:hover{ color:var(--ink);}
+
+  /* start overlay */
+  .pulse{ animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.05);} }
+
+  /* confetti */
+  .confetti{ position:absolute; top:-12px; width:9px; height:14px; border-radius:2px; z-index:4; will-change:transform; }
+
+  @media (prefers-reduced-motion: reduce){
+    .card{ transition:none; } .pulse{animation:none;} .card.matched .front{animation:none;}
+  }
+</style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <div class="brand">
+      <div class="logo">🥤</div>
+      <div>
+        <h1>きらめきソーダ</h1>
+        <p>そろえてスッキリ！神経衰弱チャレンジ</p>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="chip"><div class="k">TIME</div><div class="v" id="time">0.0</div></div>
+      <div class="chip live"><div class="k">MATCH</div><div class="v"><span id="pairs">0</span>/3</div></div>
+      <div class="chip"><div class="k">TAP</div><div class="v" id="moves">0</div></div>
+    </div>
+
+    <div class="board" id="board" aria-label="神経衰弱ボード"></div>
+
+    <div class="hint" id="hint">同じ2枚をめくってそろえよう！</div>
+
+    <!-- Start overlay -->
+    <div class="overlay show" id="startOverlay">
+      <div class="emoji">🥤✨</div>
+      <div class="big">3ペア そろえるだけ</div>
+      <div class="sub">数秒で遊べるミニチャレンジ。<br>全部そろえてクーポンをGETしよう！</div>
+      <button class="btn primary pulse" id="startBtn" style="margin-top:14px">タップしてスタート</button>
+    </div>
+
+    <!-- Win overlay -->
+    <div class="overlay" id="winOverlay">
+      <div class="emoji">🎉</div>
+      <div class="big" id="winTitle">クリア！</div>
+      <div class="sub" id="winSub">ナイスコンプリート！</div>
+      <div class="coupon"><small>SPECIAL COUPON</small>KIRA-15%OFF</div>
+      <button class="btn primary" id="ctaBtn">クーポンを使って購入する →</button>
+      <button class="btn ghost" id="replayBtn">もう一度あそぶ</button>
+    </div>
+  </main>
+
+<script>
+(function(){
+  const ICONS = ["🍋","🍓","🍊","🍇","🍏","🫐"];
+  const PAIRS = 3; // 3 pairs -> 6 cards -> few seconds
+  const board = document.getElementById("board");
+  const timeEl = document.getElementById("time");
+  const pairsEl = document.getElementById("pairs");
+  const movesEl = document.getElementById("moves");
+  const hintEl = document.getElementById("hint");
+  const startOverlay = document.getElementById("startOverlay");
+  const winOverlay = document.getElementById("winOverlay");
+  const winTitle = document.getElementById("winTitle");
+  const winSub = document.getElementById("winSub");
+  const stage = document.getElementById("stage");
+
+  let deck=[], first=null, lock=false, matched=0, moves=0;
+  let t0=0, timer=null, running=false;
+
+  // ---- tiny sound (Web Audio) ----
+  let ac=null;
+  function beep(freq, dur, type){
+    try{
+      ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.type=type||"sine"; o.frequency.value=freq;
+      o.connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(.0001, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(.15, ac.currentTime+.01);
+      g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime+dur);
+      o.start(); o.stop(ac.currentTime+dur);
+    }catch(e){}
+  }
+  const sFlip =()=>beep(520,.08,"triangle");
+  const sMatch=()=>{beep(660,.10,"sine"); setTimeout(()=>beep(880,.14,"sine"),90);};
+  const sWin  =()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.16,"triangle"),i*110));};
+
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+  function build(){
+    board.innerHTML="";
+    const chosen = shuffle(ICONS.slice()).slice(0,PAIRS);
+    deck = shuffle(chosen.concat(chosen));
+    deck.forEach((icon,i)=>{
+      const c=document.createElement("button");
+      c.className="card"; c.setAttribute("aria-label","カード"); c.dataset.icon=icon; c.dataset.i=i;
+      c.innerHTML='<div class="face back"><span>?</span></div><div class="face front">'+icon+'</div>';
+      c.addEventListener("click",()=>flip(c));
+      board.appendChild(c);
+    });
+  }
+
+  function startTimer(){
+    t0=performance.now(); running=true;
+    timer=setInterval(()=>{ timeEl.textContent=((performance.now()-t0)/1000).toFixed(1); },100);
+  }
+  function stopTimer(){ running=false; clearInterval(timer); }
+
+  function flip(c){
+    if(lock||c.classList.contains("flipped")||c.classList.contains("matched")) return;
+    if(!running) startTimer();
+    c.classList.add("flipped"); sFlip();
+    if(!first){ first=c; return; }
+    moves++; movesEl.textContent=moves;
+    if(first.dataset.icon===c.dataset.icon){
+      // match
+      lock=true;
+      setTimeout(()=>{
+        first.classList.add("matched"); c.classList.add("matched");
+        sMatch(); burst(c);
+        matched++; pairsEl.textContent=matched;
+        first=null; lock=false;
+        hintEl.textContent = matched<PAIRS ? "いいね！その調子！" : "";
+        if(matched===PAIRS) win();
+      },260);
+    } else {
+      lock=true;
+      setTimeout(()=>{
+        first.classList.remove("flipped"); c.classList.remove("flipped");
+        first=null; lock=false;
+      },720);
+    }
+  }
+
+  function win(){
+    stopTimer();
+    const secs=((performance.now()-t0)/1000).toFixed(1);
+    winTitle.textContent="コンプリート！ 🎉";
+    winSub.textContent = secs+"秒 / "+moves+"タップでクリア！";
+    sWin(); confetti();
+    setTimeout(()=>winOverlay.classList.add("show"),450);
+  }
+
+  // small particle burst on a matched card
+  function burst(el){
+    const r=el.getBoundingClientRect(), sr=stage.getBoundingClientRect();
+    const cx=r.left-sr.left+r.width/2, cy=r.top-sr.top+r.height/2;
+    const colors=["#2783DE","#EAC26B","#DF84A8","#46A171"];
+    for(let i=0;i<10;i++){
+      const p=document.createElement("div");
+      p.className="confetti"; p.style.cssText=
+        "left:"+cx+"px;top:"+cy+"px;width:7px;height:7px;border-radius:50%;background:"+colors[i%4]+";position:absolute;z-index:4;";
+      stage.appendChild(p);
+      const ang=Math.random()*Math.PI*2, dist=30+Math.random()*40;
+      p.animate([{transform:"translate(0,0) scale(1)",opacity:1},
+        {transform:"translate("+Math.cos(ang)*dist+"px,"+Math.sin(ang)*dist+"px) scale(0)",opacity:0}],
+        {duration:600,easing:"cubic-bezier(.2,.7,.2,1)"}).onfinish=()=>p.remove();
+    }
+  }
+
+  // full confetti rain on win
+  function confetti(){
+    const colors=["#2783DE","#5E9FE8","#EAC26B","#DF84A8","#46A171"];
+    const W=stage.clientWidth;
+    for(let i=0;i<70;i++){
+      const p=document.createElement("div");
+      p.className="confetti";
+      p.style.left=Math.random()*W+"px";
+      p.style.background=colors[i%colors.length];
+      p.style.transform="rotate("+Math.random()*360+"deg)";
+      stage.appendChild(p);
+      const dx=(Math.random()-.5)*80, fall=stage.clientHeight+40;
+      p.animate([{transform:"translate(0,0) rotate(0deg)",opacity:1},
+        {transform:"translate("+dx+"px,"+fall+"px) rotate("+(360+Math.random()*360)+"deg)",opacity:.9}],
+        {duration:1400+Math.random()*900,easing:"cubic-bezier(.3,.6,.4,1)",delay:Math.random()*250}
+      ).onfinish=()=>p.remove();
+    }
+  }
+
+  function reset(){
+    stopTimer(); first=null; lock=false; matched=0; moves=0;
+    timeEl.textContent="0.0"; pairsEl.textContent="0"; movesEl.textContent="0";
+    hintEl.textContent="同じ2枚をめくってそろえよう！";
+    build();
+  }
+
+  // ---- wiring ----
+  document.getElementById("startBtn").addEventListener("click",()=>{
+    beep(700,.08,"triangle");
+    startOverlay.classList.remove("show");
+  });
+  document.getElementById("replayBtn").addEventListener("click",()=>{
+    winOverlay.classList.remove("show"); reset();
+  });
+  document.getElementById("ctaBtn").addEventListener("click",()=>{
+    const b=document.getElementById("ctaBtn");
+    b.textContent="ありがとうございます！ ✓";
+    b.style.background="linear-gradient(135deg,#46A171,#72BC8F)";
+    beep(880,.12,"sine");
+    // In a real ad this would open the advertiser's landing page.
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>

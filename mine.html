@@ -1,0 +1,61 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>マインスイーパー｜プレイアブル広告デモ</title>
+<style>
+:root{--accent:#3fa9ff;--accent2:#7b5cff;--txt:#f5f5f7}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:radial-gradient(circle at 50% -10%,#182233,#0b0d11);color:var(--txt);font-family:system-ui,'Noto Sans JP',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;user-select:none}
+.brandbar{width:100%;max-width:430px;display:flex;align-items:center;gap:9px;padding:12px 18px}
+.logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff}
+.brandbar b{font-size:14px}.brandbar .tag{margin-left:auto;font-size:11px;opacity:.6;border:1px solid #333c4d;padding:2px 8px;border-radius:20px}
+.wrap{width:100%;max-width:430px;padding:0 18px 24px}
+.hud{display:flex;gap:10px;margin:4px 0 12px}
+.chip{flex:1;background:#171b24;border-radius:12px;padding:8px 12px;text-align:center}
+.chip small{opacity:.55;font-size:11px}.chip div{font-size:20px;font-weight:800}
+.tools{display:flex;gap:8px;margin-bottom:10px}
+.tbtn{flex:1;background:#171b24;border:1px solid #232a36;color:var(--txt);border-radius:10px;padding:9px;font-size:13px;cursor:pointer}
+.tbtn.on{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none}
+#board{display:grid;gap:3px;background:#12151d;border-radius:12px;padding:8px;touch-action:manipulation}
+.c{aspect-ratio:1;background:#2a323f;border-radius:5px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;cursor:pointer}
+.c.open{background:#1a1e27;cursor:default}.c.mine{background:#ff5f6d}
+.hint{text-align:center;opacity:.55;font-size:12px;margin-top:12px}
+.overlay{position:fixed;inset:0;background:rgba(6,8,12,.9);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px;z-index:30}
+.overlay.show{display:flex;animation:fade .3s}@keyframes fade{from{opacity:0}}
+.overlay h2{font-size:30px;margin:0 0 4px}.overlay p{opacity:.8;margin:0 0 20px}
+.cta{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-weight:900;border:none;border-radius:14px;padding:17px 26px;font-size:17px;width:100%;max-width:290px;cursor:pointer;box-shadow:0 10px 30px rgba(90,120,255,.4);animation:pulse 1.4s infinite}@keyframes pulse{50%{transform:scale(1.04)}}
+.ghost{background:none;border:1px solid #3a4150;color:var(--txt);border-radius:12px;padding:12px 20px;margin-top:12px;cursor:pointer;font-size:14px}
+.endbrand{margin-top:22px;opacity:.55;font-size:12px}
+.adp{position:fixed;width:9px;height:9px;border-radius:2px;pointer-events:none;z-index:50;animation:adpop .6s ease-out forwards}@keyframes adpop{to{transform:translate(var(--dx),var(--dy)) rotate(220deg);opacity:0}}
+</style></head><body>
+<div class="brandbar"><div class="logo">N</div><b>YOUR BRAND</b><span class="tag">Playable Ad</span></div>
+<div class="wrap">
+<div class="hud"><div class="chip"><small>残りマイン</small><div id="mines">0</div></div><div class="chip"><small>タイム</small><div id="time">0</div></div></div>
+<div class="tools"><button class="tbtn on" id="digBtn">⛏ 掘る</button><button class="tbtn" id="flagBtn">🚩 旗</button></div>
+<div id="board"></div>
+<div class="hint">安全マスを全部開けたらクリア。長押しでも旗が置ける</div>
+</div>
+<div class="overlay" id="ov"><h2 id="ovt">クリア！</h2><p id="ovp"></p><button class="cta" id="cta">▶ 続きを無料アプリで</button><button class="ghost" id="again">もう一度</button><div class="endbrand">Presented by YOUR BRAND</div></div>
+<script>
+const AD={track(e,d){(window._adEvents=window._adEvents||[]).push({e,d,t:Date.now()});console.log('[ad]',e,d??'');},
+snd(f,d=.08,t='square',v=.12){try{const c=AD._c||(AD._c=new(window.AudioContext||window.webkitAudioContext)());const o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d);o.stop(c.currentTime+d);}catch(e){}},
+burst(x,y){for(let i=0;i<16;i++){const p=document.createElement('div');p.className='adp';const a=Math.random()*6.28,s=2+Math.random()*4;p.style.left=x+'px';p.style.top=y+'px';p.style.setProperty('--dx',Math.cos(a)*s*15+'px');p.style.setProperty('--dy',Math.sin(a)*s*15+'px');p.style.background='hsl('+(Math.random()*200+180)+',90%,65%)';document.body.appendChild(p);setTimeout(()=>p.remove(),650);}}};
+const R=9,C=9,M=10;let cells,flags,opened,over,started,timer,secs=0,flagMode=false;
+const boardEl=document.getElementById('board');boardEl.style.gridTemplateColumns='repeat('+C+',1fr)';
+const numColors=['','#5ab0ff','#54cf6b','#ff9e4e','#ff5f6d','#ff5f6d','#ff5f6d','#ff5f6d','#ff5f6d'];
+function init(){cells=[];flags=[];opened=[];over=false;started=false;secs=0;clearInterval(timer);document.getElementById('time').textContent=0;document.getElementById('mines').textContent=M;document.getElementById('ov').classList.remove('show');boardEl.innerHTML='';for(let i=0;i<R*C;i++){flags[i]=false;opened[i]=false;const d=document.createElement('div');d.className='c';d.dataset.i=i;boardEl.appendChild(d);}AD.track('game_start');}
+function plant(safe){const b=new Set();while(b.size<M){const p=Math.random()*R*C|0;if(p!==safe&&!nbrs(safe).includes(p))b.add(p);}cells=[];for(let i=0;i<R*C;i++)cells[i]=b.has(i)?-1:0;for(const m of b)for(const n of nbrs(m))if(cells[n]>=0)cells[n]++;}
+function nbrs(i){const r=i/C|0,c=i%C,a=[];for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<R&&nc>=0&&nc<C)a.push(nr*C+nc);}return a;}
+function open(i){if(opened[i]||flags[i]||over)return;if(!started){started=true;plant(i);timer=setInterval(()=>document.getElementById('time').textContent=++secs,1000);}opened[i]=true;const el=boardEl.children[i];el.classList.add('open');if(cells[i]===-1){el.classList.add('mine');el.textContent='💣';return boom(el);}AD.snd(420,.05);if(cells[i]>0){el.textContent=cells[i];el.style.color=numColors[cells[i]];}else for(const n of nbrs(i))open(n);check();}
+function boom(el){over=true;clearInterval(timer);AD.snd(150,.3,'sawtooth');cells.forEach((v,i)=>{if(v===-1&&!flags[i]){boardEl.children[i].classList.add('open','mine');boardEl.children[i].textContent='💣';}});AD.track('game_over',{secs});setTimeout(()=>show('💥 ドカン！','惜しい！アプリでリベンジしよう'),400);}
+function check(){let o=0;for(let i=0;i<R*C;i++)if(opened[i])o++;if(o===R*C-M){over=true;clearInterval(timer);const r=boardEl.getBoundingClientRect();AD.burst(r.left+r.width/2,r.top+r.height/2);AD.snd(700,.25,'triangle');AD.track('game_win',{secs});setTimeout(()=>show('🎉 全マス制覇！',secs+'秒でクリア！アプリでもっと難問に挑戦'),300);}}
+function show(t,p){document.getElementById('ovt').textContent=t;document.getElementById('ovp').textContent=p;document.getElementById('ov').classList.add('show');}
+function toggleFlag(i){if(opened[i]||over)return;flags[i]=!flags[i];const el=boardEl.children[i];el.textContent=flags[i]?'🚩':'';AD.snd(520,.05);let f=0;flags.forEach(x=>{if(x)f++;});document.getElementById('mines').textContent=M-f;}
+let lt;boardEl.addEventListener('pointerdown',e=>{const t=e.target.closest('.c');if(!t)return;const i=+t.dataset.i;lt=setTimeout(()=>{toggleFlag(i);lt=null;},380);});
+boardEl.addEventListener('pointerup',e=>{const t=e.target.closest('.c');if(!t)return;if(lt){clearTimeout(lt);lt=null;const i=+t.dataset.i;flagMode?toggleFlag(i):open(i);}});
+boardEl.addEventListener('contextmenu',e=>{e.preventDefault();const t=e.target.closest('.c');if(t)toggleFlag(+t.dataset.i);});
+document.getElementById('digBtn').onclick=()=>{flagMode=false;digBtn.classList.add('on');flagBtn.classList.remove('on');};
+document.getElementById('flagBtn').onclick=()=>{flagMode=true;flagBtn.classList.add('on');digBtn.classList.remove('on');};
+document.getElementById('cta').onclick=()=>{AD.track('cta_click');alert('▶ ストアへ遷移（デモ）');};
+document.getElementById('again').onclick=init;
+init();
+</script></body></html>
